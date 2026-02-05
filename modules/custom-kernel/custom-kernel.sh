@@ -281,15 +281,16 @@ EOF
 force_drivers+=" i915 amdgpu nvidia nvidia_drm nvidia_modeset nvidia_peermem nvidia_uvm "
 EOF
 
-    if command -v rpm-ostree >/dev/null 2>&1 && [[ -f /run/ostree-booted ]]; then
-        log "Setting up Nvidia kernel arguments."
-        rpm-ostree kargs \
-            --append=rd.driver.blacklist=nouveau \
-            --append=modprobe.blacklist=nouveau \
-            --append=rd.driver.pre=nvidia \
-            --append=nvidia-drm.modeset=1 \
-            --append=nvidia-drm.fbdev=1
-    fi
+    log "Injecting Nvidia kernel args"
+    install -D -m 0644 /dev/stdin /usr/lib/bootc/kargs.d/90-nvidia.toml <<'EOF'
+kargs = [
+"rd.driver.blacklist=nouveau",
+"modprobe.blacklist=nouveau",
+"rd.driver.pre=nvidia",
+"nvidia-drm.modeset=1",
+"nvidia-drm.fbdev=1"
+]
+EOF
 fi
 
 # 6. Sign the kernel and modules
