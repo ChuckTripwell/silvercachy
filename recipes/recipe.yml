@@ -49,7 +49,7 @@ modules:
   # Cachyos kernel
   - type: custom-kernel
     source: local
-    kernel: cachyos
+    kernel: cachyos-lto
     initramfs: true
     nvidia: true
     sign: 

@@ -310,10 +310,9 @@ EOF
 fi
 
 # 6. Sign the kernel and modules
-sign_kernel_modules() {
+sign_kernel() {
     local MODULE_ROOT="/usr/lib/modules/$KERNEL_VERSION"
     local VMLINUZ="$MODULE_ROOT/vmlinuz"
-    local SIGN_FILE="$MODULE_ROOT/build/scripts/sign-file"
 
     # Sign kernel
     if [ -f "$VMLINUZ" ]; then
@@ -340,6 +339,16 @@ sign_kernel_modules() {
         rm -f "$CLEAN_VMLINUZ" "$SIGNED_VMLINUZ"
     else
         error "Can't find kernel image: $VMLINUZ"
+        return 1
+    fi
+}
+
+sign_kernel_modules() {
+    local MODULE_ROOT="/usr/lib/modules/$KERNEL_VERSION"
+    local SIGN_FILE="$MODULE_ROOT/build/scripts/sign-file"
+
+    if [[ ! -x "$SIGN_FILE" ]]; then
+        error "sign-file not found or not executable: $SIGN_FILE"
         return 1
     fi
 
@@ -430,6 +439,11 @@ if [[ ${INITRAMFS} == true ]]; then
 
     install -D -m 0600 "$tmp_initramfs" "/lib/modules/${KERNEL_VERSION}/initramfs.img"
     rm -f "$tmp_initramfs"
+fi
+
+# 8. Sign kernel
+if [[ -f "$SIGNING_KEY" && -f "$SIGNING_CERT" && -n "$MOK_PASSWORD" ]]; then
+    sign_kernel || exit 1
 fi
 
 log "Custom kernel installation complete."
