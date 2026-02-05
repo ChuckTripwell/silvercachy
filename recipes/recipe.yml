@@ -54,8 +54,8 @@ modules:
     nvidia: true
     sign: 
       key: /tmp/certs/MOK.priv
+      cert: /usr/share/cert/MOK.pem
       mok-password: scachy
-      mok-issuer: SilverCachy
     secrets:
     - type: file
       source: ./MOK.priv
