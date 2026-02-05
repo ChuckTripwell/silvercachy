@@ -50,6 +50,7 @@ modules:
   - type: custom-kernel
     source: local
     kernel: cachyos-lto
+    initramfs: true
     nvidia: true
     sign: 
       key: /tmp/certs/MOK.priv
