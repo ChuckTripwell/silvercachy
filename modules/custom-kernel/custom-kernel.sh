@@ -281,11 +281,12 @@ EOF
 force_drivers+=" i915 amdgpu nvidia nvidia_drm nvidia_modeset nvidia_peermem nvidia_uvm "
 EOF
 
-    log "Setting up Nvidia kernel arguments."
     if command -v rpm-ostree >/dev/null 2>&1 && [[ -f /run/ostree-booted ]]; then
+        log "Setting up Nvidia kernel arguments."
         rpm-ostree kargs \
             --append=rd.driver.blacklist=nouveau \
             --append=modprobe.blacklist=nouveau \
+            --append=rd.driver.pre=nvidia \
             --append=nvidia-drm.modeset=1 \
             --append=nvidia-drm.fbdev=1
     fi
@@ -408,15 +409,22 @@ fi
 
 # 7. Initramfs
 if [[ ${INITRAMFS} == true ]]; then
+    log "Generating initramfs."
+
+    tmp_initramfs="$(mktemp)"
+
     DRACUT_NO_XATTR=1 /usr/bin/dracut \
         --no-hostonly \
         --kver "${KERNEL_VERSION}" \
         --reproducible \
         --add ostree \
-        -f "/lib/modules/${KERNEL_VERSION}/initramfs.img" \
+        -f "$tmp_initramfs" \
         -v || return 1
 
-    chmod 0600 "/lib/modules/${KERNEL_VERSION}/initramfs.img"
+    install -D -m 0600 "$tmp_initramfs" \
+        "/lib/modules/${KERNEL_VERSION}/initramfs.img"
+
+    rm -f "$tmp_initramfs"
 fi
 
 log "Custom kernel installation complete."
