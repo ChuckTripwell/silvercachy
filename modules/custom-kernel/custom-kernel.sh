@@ -315,32 +315,36 @@ sign_kernel() {
     local VMLINUZ="$MODULE_ROOT/vmlinuz"
 
     # Sign kernel
-    if [ -f "$VMLINUZ" ]; then
+    if [[ -f "$VMLINUZ" ]]; then
         log "Signing kernel image: $VMLINUZ"
-        
-        CLEAN_VMLINUZ=$(mktemp)
-        SIGNED_VMLINUZ=$(mktemp)
-        cp "$VMLINUZ" "$CLEAN_VMLINUZ"
-        sbattach --remove "$CLEAN_VMLINUZ" || true
-        sbsign --key "$SIGNING_KEY" --cert "$SIGNING_CERT" --output "$SIGNED_VMLINUZ" "$CLEAN_VMLINUZ"
-        
-        # Verify the signed temp file BEFORE installing it
-        if sbverify --cert "$SIGNING_CERT" "$SIGNED_VMLINUZ"; then
-            log "Verification successful. Installing signed kernel."
-            # Use install to replace the original vmlinuz with correct permissions (0644)
-            install -m 0644 "$SIGNED_VMLINUZ" "$VMLINUZ"
-        else
-            error "Verification failed for signed kernel! Aborting install."
-            rm -f "$CLEAN_VMLINUZ" "$SIGNED_VMLINUZ"
+
+        SIGNED_VMLINUZ="$(mktemp)"
+
+        # Sign kernel into temp file
+        sbsign \
+            --key  "$SIGNING_KEY" \
+            --cert "$SIGNING_CERT" \
+            --output "$SIGNED_VMLINUZ" \
+            "$VMLINUZ"
+
+        # Verify signature before installing
+        if ! sbverify --cert "$SIGNING_CERT" "$SIGNED_VMLINUZ"; then
+            error "Kernel signature verification failed"
+            rm -f "$SIGNED_VMLINUZ"
             return 1
         fi
-        
-        # Cleanup
-        rm -f "$CLEAN_VMLINUZ" "$SIGNED_VMLINUZ"
+
+        log "Verification successful. Installing signed kernel."
+
+        # Atomically replace original kernel with signed one
+        install -m 0644 "$SIGNED_VMLINUZ" "$VMLINUZ"
+        rm -f "$SIGNED_VMLINUZ"
     else
         error "Can't find kernel image: $VMLINUZ"
         return 1
     fi
+
+    sha256sum "$VMLINUZ" > /tmp/vmlinuz.sha
 }
 
 sign_kernel_modules() {
@@ -421,6 +425,7 @@ EOF
 }
 
 if [[ -f "$SIGNING_KEY" && -f "$SIGNING_CERT" && -n "$MOK_PASSWORD" ]]; then
+    sign_kernel || exit 1
     sign_kernel_modules || exit 1
     create_mok_enroll_unit  || exit 1
 fi
@@ -441,9 +446,10 @@ if [[ ${INITRAMFS} == true ]]; then
     rm -f "$tmp_initramfs"
 fi
 
-# 8. Sign kernel
-if [[ -f "$SIGNING_KEY" && -f "$SIGNING_CERT" && -n "$MOK_PASSWORD" ]]; then
-    sign_kernel || exit 1
-fi
+# 8. Check kernel for changes
+sha256sum -c /tmp/vmlinuz.sha || {
+  echo "Kernel modified after signing"
+  exit 1
+}
 
 log "Custom kernel installation complete."
