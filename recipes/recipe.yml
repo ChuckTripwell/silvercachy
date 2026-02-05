@@ -46,11 +46,36 @@ modules:
     snippets:
       - 'grep -E "^audio:" /usr/lib/group >> /etc/group'
 
-  # Install CachyOS kernel and addons
-  - from-file: cachyos.yml
-  
-  # Install Nvidia modules and userspace
-  - from-file: nvidia.yml
+  # Cachyos kernel
+  - type: custom-kernel
+    source: local
+    kernel: cachyos-lto
+    nvidia: true
+    sign: 
+      key: /tmp/certs/MOK.priv
+      mok-password: scachy
+    secrets:
+    - type: file
+      source: ./MOK.priv
+      mount: 
+        type: file
+        destination: /tmp/certs/MOK.priv
+
+  # Cachyos addons
+  - type: dnf
+    repos:
+      cleanup: true
+      copr:
+        - bieszczaders/kernel-cachyos-addons
+    remove:
+      packages:
+        - zram-generator-defaults
+    install:
+      skip-unavailable: true
+      packages:
+        - cachyos-settings
+        - scx-scheds
+        - scx-tools
 
   # Needed services
   - type: systemd
@@ -60,20 +85,6 @@ modules:
         - flatpak-firstboot.service     # installs the default flatpaks
         - hostname-firstboot.service    # sets static hostname to silvercachy
         - mok-enroll-firstboot.service  # enrolls kernel and modules signing key for secureboot
-
-  # Sign kernel and modules recursively
-  - type: script
-    env:
-      CERT: /usr/share/silvercachy/MOK.pem
-      KEY: /tmp/certs/MOK.priv
-    secrets:
-      - type: file
-        source: ./MOK.priv
-        mount: 
-          type: file
-          destination: /tmp/certs/MOK.priv
-    scripts:
-      - sign.sh
 
   # Re-build initramfs
   - type: script
