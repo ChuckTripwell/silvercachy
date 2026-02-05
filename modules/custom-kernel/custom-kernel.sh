@@ -25,6 +25,7 @@ KERNEL_TYPE=$(echo "$1" | jq -r 'try .["kernel"] // "cachyos-lto"')
 NVIDIA=$(echo "$1" | jq -r 'try .["nvidia"] // "false"')
 SIGNING_KEY=$(echo "$1" | jq -r 'try .sign["key"] // ""')
 MOK_PASSWORD=$(echo "$1" | jq -r 'try .sign["mok-password"] // ""')
+MOK_ISSUER=$(echo "$1" | jq -r '(.sign["mok-issuer"] // "MOK") | select(length>0) // "MOK"')
 
 # Checking key, cert and password. Can't continue without them
 if [[ -z "$SIGNING_KEY" && -z "$MOK_PASSWORD" ]]; then
@@ -300,7 +301,7 @@ sign_kernel_modules() {
     -key "$KEY" \
     -out "$CERT" \
     -days 36500 \
-    -subj "/CN=Module Signing/" || return 1
+    -subj "/CN=$(printf '%s' "$MOK_ISSUER")/" || return 1
 
     local MODULE_ROOT="/usr/lib/modules/$KERNEL_VERSION"
     local VMLINUZ="$MODULE_ROOT/vmlinuz"
@@ -359,18 +360,19 @@ create_mok_enroll_unit() {
     fi
 
     # Create the DER file for MOK enrollment
-    tmp="$(mktemp)"
+    local CERT
+    CERT="$(mktemp)"
 
     openssl req \
     -new -x509 \
     -key "$KEY" \
     -outform DER \
-    -out "$tmp" \
+    -out "$CERT" \
     -days 36500 \
-    -subj "/CN=MOK/"
+    -subj "/CN=$(printf '%s' "$MOK_ISSUER")/" || return 1
 
-    install -D -m 0644 "$tmp" "$DER_PATH/MOK.der"
-    rm -f "$tmp"
+    install -D -m 0644 "$CERT" "$DER_PATH/MOK.der"
+    rm -f "$CERT"
 
     install -D -m 0644 /dev/stdin "$UNIT_FILE" <<EOF
 [Unit]
