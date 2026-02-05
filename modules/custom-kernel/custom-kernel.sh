@@ -411,9 +411,7 @@ fi
 # 7. Initramfs
 if [[ ${INITRAMFS} == true ]]; then
     log "Generating initramfs."
-
     tmp_initramfs="$(mktemp)"
-
     DRACUT_NO_XATTR=1 /usr/bin/dracut \
         --no-hostonly \
         --kver "${KERNEL_VERSION}" \
@@ -422,9 +420,7 @@ if [[ ${INITRAMFS} == true ]]; then
         -f "$tmp_initramfs" \
         -v || return 1
 
-    install -D -m 0600 "$tmp_initramfs" \
-        "/lib/modules/${KERNEL_VERSION}/initramfs.img"
-
+    install -D -m 0600 "$tmp_initramfs" "/lib/modules/${KERNEL_VERSION}/initramfs.img"
     rm -f "$tmp_initramfs"
 fi
 
