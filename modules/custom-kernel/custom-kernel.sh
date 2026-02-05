@@ -315,39 +315,31 @@ sign_kernel_modules() {
     local VMLINUZ="$MODULE_ROOT/vmlinuz"
     local SIGN_FILE="$MODULE_ROOT/build/scripts/sign-file"
 
-    # Sign kernel image
+    # Sign kernel
     if [ -f "$VMLINUZ" ]; then
         log "Signing kernel image: $VMLINUZ"
         
         CLEAN_VMLINUZ=$(mktemp)
-        ALIGNED_VMLINUZ=$(mktemp)
         SIGNED_VMLINUZ=$(mktemp)
-
         cp "$VMLINUZ" "$CLEAN_VMLINUZ"
         sbattach --remove "$CLEAN_VMLINUZ" || true
-
-        log "Aligning PE sections for $KERNEL_VERSION"
-        objcopy "$CLEAN_VMLINUZ" "$ALIGNED_VMLINUZ"
-        sbsign --key "$SIGNING_KEY" --cert "$SIGNING_CERT" --output "$SIGNED_VMLINUZ" "$ALIGNED_VMLINUZ"
-
-        # Verify
+        sbsign --key "$SIGNING_KEY" --cert "$SIGNING_CERT" --output "$SIGNED_VMLINUZ" "$CLEAN_VMLINUZ"
+        
+        # Verify the signed temp file BEFORE installing it
         if sbverify --cert "$SIGNING_CERT" "$SIGNED_VMLINUZ"; then
-            log "Verification successful (clean alignment). Installing kernel."
+            log "Verification successful. Installing signed kernel."
+            # Use install to replace the original vmlinuz with correct permissions (0644)
             install -m 0644 "$SIGNED_VMLINUZ" "$VMLINUZ"
         else
-            error "Verification failed even after alignment! Check keys."
-            rm -f "$CLEAN_VMLINUZ" "$ALIGNED_VMLINUZ" "$SIGNED_VMLINUZ"
+            error "Verification failed for signed kernel! Aborting install."
+            rm -f "$CLEAN_VMLINUZ" "$SIGNED_VMLINUZ"
             return 1
         fi
-
-        rm -f "$CLEAN_VMLINUZ" "$ALIGNED_VMLINUZ" "$SIGNED_VMLINUZ"
+        
+        # Cleanup
+        rm -f "$CLEAN_VMLINUZ" "$SIGNED_VMLINUZ"
     else
         error "Can't find kernel image: $VMLINUZ"
-        return 1
-    fi
-
-    if [[ ! -x "$SIGN_FILE" ]]; then
-        error "sign-file not found or not executable: $SIGN_FILE"
         return 1
     fi
 
