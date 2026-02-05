@@ -28,9 +28,9 @@ MOK_PASSWORD=$(echo "$1" | jq -r 'try .sign["mok-password"] // ""')
 
 # Checking key, cert and password. Can't continue without them
 if [[ -z "$SIGNING_KEY" && -z "$MOK_PASSWORD" ]]; then
-    log "SecureBoot signing disabled"
+    log "SecureBoot signing disabled."
 elif [[ -f "$SIGNING_KEY" && -n "$MOK_PASSWORD" ]]; then
-    log "SecureBoot signing enabled"
+    log "SecureBoot signing enabled."
 else
     error "Invalid signing config:"
     error "  sign.key:  ${SIGNING_KEY:-<empty>}"
@@ -240,8 +240,8 @@ if [[ "${NVIDIA}" == "true" ]]; then
     semodule -i nvidia-container.pp
     rm -f nvidia-container.pp
 
-    log "Installing Nvidia container toolkit service and preset"
-    install -D /dev/stdin /usr/lib/systemd/system/nvctk-cdi.service <<'EOF'
+    log "Installing Nvidia container toolkit service and preset."
+    install -D -m 0644 /dev/stdin /usr/lib/systemd/system/nvctk-cdi.service <<'EOF'
 [Unit]
 Description=NVIDIA Container Toolkit CDI auto-generation
 ConditionFileIsExecutable=/usr/bin/nvidia-ctk
@@ -256,19 +256,19 @@ ExecStart=/usr/bin/nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml
 WantedBy=multi-user.target
 EOF
 
-    install -D /dev/stdin /usr/lib/systemd/system-preset/70-nvctk-cdi.preset <<'EOF'
+    install -D -m 0644 /dev/stdin /usr/lib/systemd/system-preset/70-nvctk-cdi.preset <<'EOF'
 enable nvctk-cdi.service
 EOF
 
     log "Setting up Nvidia modules."
-    install -D /dev/stdin /etc/modprobe.d/nvidia.conf <<'EOF'
+    install -D -m 0644 /dev/stdin /etc/modprobe.d/nvidia.conf <<'EOF'
 blacklist nouveau
 options nouveau modeset=0
 options nvidia-drm modeset=1 fbdev=1
 EOF
 
     log "Setting up GPU modules for initramfs."
-    install -D /dev/stdin /usr/lib/dracut/dracut.conf.d/99-nvidia.conf <<'EOF'
+    install -D -m 0644 /dev/stdin /usr/lib/dracut/dracut.conf.d/99-nvidia.conf <<'EOF'
 # Force the i915 amdgpu nvidia drivers to the ramdisk
 force_drivers+=" i915 amdgpu nvidia nvidia_drm nvidia_modeset nvidia_peermem nvidia_uvm "
 EOF
@@ -315,7 +315,7 @@ sign_kernel_modules() {
         return 1
     fi
 
-    log "Recursively signing modules..."
+    log "Recursively signing modules."
     while IFS= read -r -d '' mod; do
         case "$mod" in
         *.ko)
@@ -372,7 +372,7 @@ create_mok_enroll_unit() {
     install -D -m 0644 "$tmp" "$DER_PATH/MOK.der"
     rm -f "$tmp"
 
-    install -D /dev/stdin "$UNIT_FILE" <<EOF
+    install -D -m 0644 /dev/stdin "$UNIT_FILE" <<EOF
 [Unit]
 Description=Enroll MOK key on first boot
 ConditionPathExists=$DER_PATH/MOK.der
