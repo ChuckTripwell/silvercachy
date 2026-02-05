@@ -318,7 +318,29 @@ sign_kernel_modules() {
     # Sign kernel image
     if [ -f "$VMLINUZ" ]; then
         log "Signing kernel image: $VMLINUZ"
-        sbsign --key "$SIGNING_KEY" --cert "$SIGNING_CERT" --output "$VMLINUZ" "$VMLINUZ"
+        
+        CLEAN_VMLINUZ=$(mktemp)
+        ALIGNED_VMLINUZ=$(mktemp)
+        SIGNED_VMLINUZ=$(mktemp)
+
+        cp "$VMLINUZ" "$CLEAN_VMLINUZ"
+        sbattach --remove "$CLEAN_VMLINUZ" || true
+
+        log "Aligning PE sections for $KERNEL_VERSION"
+        objcopy "$CLEAN_VMLINUZ" "$ALIGNED_VMLINUZ"
+        sbsign --key "$SIGNING_KEY" --cert "$SIGNING_CERT" --output "$SIGNED_VMLINUZ" "$ALIGNED_VMLINUZ"
+
+        # Verify
+        if sbverify --cert "$SIGNING_CERT" "$SIGNED_VMLINUZ"; then
+            log "Verification successful (clean alignment). Installing kernel."
+            install -m 0644 "$SIGNED_VMLINUZ" "$VMLINUZ"
+        else
+            error "Verification failed even after alignment! Check keys."
+            rm -f "$CLEAN_VMLINUZ" "$ALIGNED_VMLINUZ" "$SIGNED_VMLINUZ"
+            return 1
+        fi
+
+        rm -f "$CLEAN_VMLINUZ" "$ALIGNED_VMLINUZ" "$SIGNED_VMLINUZ"
     else
         error "Can't find kernel image: $VMLINUZ"
         return 1
