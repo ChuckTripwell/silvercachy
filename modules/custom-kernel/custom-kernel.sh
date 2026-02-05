@@ -54,9 +54,9 @@ if [[ -f "$SIGNING_KEY" && -f "$SIGNING_CERT" && -n "$MOK_PASSWORD" ]]; then
     openssl x509 -in "$SIGNING_CERT" -noout >/dev/null 2>&1 \
         || { error "sign.cert is not a valid X509 cert"; exit 1; }
 
-    if ! openssl x509 -noout -modulus -in "$SIGNING_CERT" \
-         | openssl md5 \
-         | grep -q "$(openssl pkey -noout -modulus -in "$SIGNING_KEY" | openssl md5)"; then
+    if ! diff -q \
+        <(openssl pkey -in "$SIGNING_KEY" -pubout) \
+        <(openssl x509 -in "$SIGNING_CERT" -pubkey -noout); then
         error "sign.key and sign.cert do not match"
         exit 1
     fi
