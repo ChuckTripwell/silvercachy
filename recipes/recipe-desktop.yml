@@ -11,6 +11,8 @@ modules:
     files:
       - source: system-desktop
         destination: /
+      - source: common
+        destination: /
 
   # Set up the base image apps/tools
   - type: dnf

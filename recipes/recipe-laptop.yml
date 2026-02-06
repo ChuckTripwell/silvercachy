@@ -11,6 +11,8 @@ modules:
     files:
       - source: system-laptop
         destination: /
+      - source: common
+        destination: /
 
   # Minimal base image without extra GUI or CLI tools
   - type: dnf
