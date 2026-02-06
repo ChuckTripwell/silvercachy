@@ -33,8 +33,6 @@ The kernel and all modules are signed with my `MOK` key. On secure boot systems 
   - `gamemode`
   - `adw-gtk3-theme`
 
-Note that `game-performance` script from `cachyos-settings` is removed due it's dependency on `power-profile-daemon`. Fedora uses `tuned` instead which looks like is the future. Also it's not easy to run `game-performance` from Steam's flatpak version. Just use `gamemoderun`. Should do the same trick.
-
 ## Installation
 
 - Disable `secureboot` from BIOS and boot to an atomic distro

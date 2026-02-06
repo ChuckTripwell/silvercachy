@@ -1,0 +1,22 @@
+[Unit]
+Description=One-time flatpak install on first boot
+After=network-online.target flatpak-system-helper.service
+Wants=network-online.target
+ConditionPathExists=!/var/lib/silverwork/.flatpak-firstboot.done
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/flatpak install -y --system \
+    io.github.kolunmi.Bazaar \
+    app.devsuite.Ptyxis \
+    org.gtk.Gtk3theme.adw-gtk3-dark \
+    org.gtk.Gtk3theme.adw-gtk3
+ExecStart=/usr/bin/flatpak override --system --filesystem=xdg-data/themes
+ExecStart=/usr/bin/flatpak mask org.gtk.Gtk3theme.adw-gtk3
+ExecStart=/usr/bin/flatpak mask org.gtk.Gtk3theme.adw-gtk3-dark
+ExecStartPost=/usr/bin/mkdir -p /var/lib/silverwork
+ExecStartPost=/usr/bin/touch /var/lib/silverwork/.flatpak-firstboot.done
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

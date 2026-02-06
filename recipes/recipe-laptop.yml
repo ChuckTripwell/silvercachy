@@ -1,7 +1,7 @@
 ---
 # yaml-language-server: $schema=https://schema.blue-build.org/recipe-v1.json
-name: silvercachy
-description: Silverblue image based on BlueBuild's base images with CachyOS kernel and Nvidia
+name: silvercachy-laptop
+description: Silverblue image based on BlueBuild's base images with CachyOS kernel (Laptop)
 base-image: ghcr.io/blue-build/base-images/fedora-silverblue
 image-version: 43
 
@@ -9,10 +9,10 @@ modules:
   # Copy necessary system files
   - type: files
     files:
-      - source: system
+      - source: system-laptop
         destination: /
 
-  # Set up the base image apps/tools
+  # Minimal base image without extra GUI or CLI tools
   - type: dnf
     remove:
       auto-remove: true
@@ -29,29 +29,23 @@ modules:
         - gnome-disk-utility
         - gnome-color-manager
         - yelp
+        - pipewire-config-raop
         - gnome-shell-extension-background-logo
     install:
       skip-unavailable: true
       packages:
-        - gamemode
         - adw-gtk3-theme
 
-  # Install AppIndicator and KStatusNotifierItem Gnome Shell extension
+  # AppIndicator and KStatusNotifierItem Support
   - type: gnome-extensions
     install:
       - 615 
-
-  # Expose audio group to users
-  - type: script
-    snippets:
-      - 'grep -E "^audio:" /usr/lib/group >> /etc/group'
 
   # Cachyos kernel
   - type: custom-kernel
     source: local
     kernel: cachyos-lto
     initramfs: true
-    nvidia: true
     sign: 
       key: /tmp/certs/MOK.priv
       cert: /usr/share/cert/MOK.pem
@@ -85,6 +79,7 @@ modules:
       enabled:
         - podman.socket                 # needed for flatpaks to access toolbox containers
         - flatpak-firstboot.service     # installs the default flatpaks
+        - scx_loader.service            # enables scxsched
 
   # Set OS name
   - type: os-release
@@ -93,7 +88,6 @@ modules:
       ID: silvercachy
       ID_LIKE: fedora
       NAME: SilverCachy
-      PRETTY_NAME: SilverCachy - Fedora Silverblue with CachyOS Kernel
+      PRETTY_NAME: SilverCachy - Fedora Silverblue with CachyOS Kernel (Laptop)
 
-  # Sign container image
   - type: signing

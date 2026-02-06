@@ -23,7 +23,8 @@ jobs:
       matrix:
         recipe:
           # !! Add your recipes here
-          - recipe.yml
+          - recipe-desktop.yml
+          - recipe-laptop.yml
     steps:
       - uses: actions/checkout@v6
         with:
