@@ -2,52 +2,45 @@
 set -euo pipefail
 
 log() {
-    echo "[custom-kernel] $*"
+    local prefix="[custom-kernel]"
+    local bold_cyan='\033[1;36m'
+    local reset='\033[0m'
+    echo -e "${bold_cyan}${prefix}${reset} $*"
 }
 
 error() {
-    echo "[custom-kernel] Error: $*"
+    local prefix="[custom-kernel] Error:"
+    local bold_red='\033[1;31m'
+    local reset='\033[0m'
+    echo -e "${bold_red}${prefix}${reset} $*"
 }
-
 log "Starting custom-kernel module..."
 
-# 1. Environment Check: Ensure we are on a Fedora-based image
-if [[ -f /etc/os-release ]]; then
-    . /etc/os-release
-    if [[ "${ID_LIKE:-}" != *"fedora"* && "${ID:-}" != "fedora" ]]; then
-        error "This module is intended for Fedora-based images. Detected ID=${ID:-unknown}."
-        exit 1
-    fi
-fi
-
-# 2. Read configuration from the first argument ($1) using jq
+# Read configuration from the first argument ($1) using jq
 KERNEL_TYPE=$(echo "$1" | jq -r '.kernel // "cachyos-lto"')
-
 INITRAMFS=$(echo "$1" | jq -r '.initramfs // false')
-
 NVIDIA=$(echo "$1" | jq -r '.nvidia // false')
-
 SIGNING_KEY=$(echo "$1" | jq -r '.sign.key // ""')
-
 SIGNING_CERT=$(echo "$1" | jq -r '.sign.cert // ""')
-
-MOK_PASSWORD=$(echo "$1" | jq -r '.sign["mok-password"] // ""')
+MOK_PASSWORD=$(echo "$1" | jq -r '.sign.["mok-password"] // ""')
+SECURE_BOOT=false
 
 # Checking key, cert and password. Can't continue without them
 if [[ -z "$SIGNING_KEY" && -z "$SIGNING_CERT" && -z "$MOK_PASSWORD" ]]; then
     log "SecureBoot signing disabled."
 elif [[ -f "$SIGNING_KEY" && -f "$SIGNING_CERT" && -n "$MOK_PASSWORD" ]]; then
     log "SecureBoot signing enabled."
+    SECURE_BOOT=true
 else
     error "Invalid signing config:"
     error "  sign.key:  ${SIGNING_KEY:-<empty>}"
     error "  sign.cert:  ${SIGNING_CERT:-<empty>}"
-    error "  sign.mok-password: ${MOK_PASSWORD:+<set>}${MOK_PASSWORD:-<empty>}"
+    error "  sign.mok-password: ${MOK_PASSWORD:-<empty>}"
     exit 1
 fi
 
 # Double check everything about keys and certs
-if [[ -f "$SIGNING_KEY" && -f "$SIGNING_CERT" && -n "$MOK_PASSWORD" ]]; then
+if [[ ${SECURE_BOOT} == true ]]; then
     openssl pkey -in "$SIGNING_KEY" -noout >/dev/null 2>&1 \
         || { error "sign.key is not a valid private key"; exit 1; }
 
@@ -62,7 +55,7 @@ if [[ -f "$SIGNING_KEY" && -f "$SIGNING_CERT" && -n "$MOK_PASSWORD" ]]; then
     fi
 fi
 
-# 3. Resolve kernel settings based on the kernel type
+# Resolve kernel settings based on the kernel type
 COPR_REPOS=()
 KERNEL_PACKAGES=()
 EXTRA_PACKAGES=(
@@ -138,6 +131,7 @@ restore_kernel_install_hooks() {
     if [[ -f "${rpmostree}.bak" ]]; then
         mv -f "${rpmostree}.bak" "${rpmostree}"
     fi
+
     if [[ -f "${dracut}.bak" ]]; then
         mv -f "${dracut}.bak" "${dracut}"
     fi
@@ -160,7 +154,7 @@ disable_kernel_install_hooks() {
     fi
 }
 
-# 4. Installing custom kernel
+# Installing custom kernel
 log "Temporarily disabling kernel install scripts."
 disable_kernel_install_hooks
 
@@ -192,30 +186,30 @@ log "Restoring kernel install scripts."
 restore_kernel_install_hooks
 
 log "Cleaning up custom kernel repos."
-rm -f "/etc/yum.repos.d/"*copr* 2>/dev/null || true
+rm -f /etc/yum.repos.d/*copr*
 
-# 5. Install Nvidia if needed
+# Install Nvidia if needed
 disable_akmodsbuild() {
-    local ak="/usr/sbin/akmodsbuild"
-    local bak="${ak}.backup"
+    local AK="/usr/sbin/akmodsbuild"
+    local BAK="${AK}.backup"
 
-    if [[ ! -f "$ak" ]]; then
-        error "akmodsbuild not found: $ak"
+    if [[ ! -f "$AK" ]]; then
+        error "akmodsbuild not found: $AK"
         return 1
     fi
 
-    cp -a "$ak" "$bak" || return 1
+    cp -a "$AK" "$BAK" || return 1
 
     # remove the problematic block
-    sed -i '/if \[\[ -w \/var \]\] ; then/,/fi/d' "$ak" || return 1
+    sed -i '/if \[\[ -w \/var \]\] ; then/,/fi/d' "$AK" || return 1
 }
 
 restore_akmodsbuild() {
-    local ak="/usr/sbin/akmodsbuild"
-    local bak="${ak}.backup"
+    local AK="/usr/sbin/akmodsbuild"
+    local BAK="${AK}.backup"
 
-    if [[ -f "$bak" ]]; then
-        mv -f "$bak" "$ak"
+    if [[ -f "$BAK" ]]; then
+        mv -f "$BAK" "$AK"
     fi
 }
 
@@ -256,8 +250,7 @@ if [[ ${NVIDIA} == true ]]; then
         nvidia-container-toolkit
 
     log "Cleaning Nvidia repositories."
-    rm -f /etc/yum.repos.d/fedora-nvidia.repo
-    rm -f /etc/yum.repos.d/nvidia-container-toolkit.repo
+    rm -f /etc/yum.repos.d/*nvidia*
 
     log "Installing Nvidia SELinux policy."
     curl -fsSL -o nvidia-container.pp https://raw.githubusercontent.com/NVIDIA/dgx-selinux/master/bin/RHEL9/nvidia-container.pp
@@ -309,14 +302,14 @@ kargs = [
 EOF
 fi
 
-# 6. Sign the kernel and modules
+# Sign the kernel and modules
 sign_kernel() {
     local MODULE_ROOT="/usr/lib/modules/$KERNEL_VERSION"
     local VMLINUZ="$MODULE_ROOT/vmlinuz"
 
     # Sign kernel
     if [[ -f "$VMLINUZ" ]]; then
-        log "Signing kernel image: $VMLINUZ"
+        log "Kernel image: $VMLINUZ"
 
         SIGNED_VMLINUZ="$(mktemp)"
 
@@ -344,6 +337,7 @@ sign_kernel() {
         return 1
     fi
 
+    # For final check
     sha256sum "$VMLINUZ" > /tmp/vmlinuz.sha
 }
 
@@ -356,7 +350,6 @@ sign_kernel_modules() {
         return 1
     fi
 
-    log "Recursively signing modules."
     while IFS= read -r -d '' mod; do
         case "$mod" in
         *.ko)
@@ -382,14 +375,12 @@ sign_kernel_modules() {
             ;;
         esac
     done < <(find "$MODULE_ROOT" -type f \( -name "*.ko" -o -name "*.ko.xz" -o -name "*.ko.zst" -o -name "*.ko.gz" \) -print0)
-
-    log "Done signing kernel + modules for $KERNEL_VERSION"
 }
 
 create_mok_enroll_unit() {
     local UNIT_NAME="mok-enroll.service"
     local UNIT_FILE="/usr/lib/systemd/system/$UNIT_NAME"
-    local MOK_CERT_DER="/usr/share/cert/MOK.der"
+    local MOK_CERT="/usr/share/cert/MOK.der"
     local TMP_DER
 
     TMP_DER="$(mktemp)"
@@ -401,18 +392,18 @@ create_mok_enroll_unit() {
             rm -f "$TMP_DER"
             return 1
         }
-    install -D -m 0644 "$TMP_DER" "$MOK_CERT_DER"
+    install -D -m 0644 "$TMP_DER" "$MOK_CERT"
     rm -f "$TMP_DER"
 
     install -D -m 0644 /dev/stdin "$UNIT_FILE" <<EOF
 [Unit]
 Description=Enroll MOK key on first boot
-ConditionPathExists=$MOK_CERT_DER
+ConditionPathExists=$MOK_CERT
 ConditionPathExists=!/var/.mok-enrolled
 
 [Service]
 Type=oneshot
-ExecStart=/bin/sh -c '(echo "$MOK_PASSWORD"; echo "$MOK_PASSWORD") | mokutil --import "$MOK_CERT_DER"'
+ExecStart=/bin/sh -c '(echo "$MOK_PASSWORD"; echo "$MOK_PASSWORD") | mokutil --import "$MOK_CERT"'
 ExecStartPost=/usr/bin/touch /var/.mok-enrolled
 RemainAfterExit=yes
 
@@ -424,32 +415,53 @@ EOF
     log "Created and enabled $UNIT_NAME"
 }
 
-if [[ -f "$SIGNING_KEY" && -f "$SIGNING_CERT" && -n "$MOK_PASSWORD" ]]; then
+if [[ ${SECURE_BOOT} == true ]]; then
+    log "Signing the kernel."
     sign_kernel || exit 1
+    
+    log "Signing kernel modules."
     sign_kernel_modules || exit 1
+
+    log "Creating MOK enroll unit for first boot."
     create_mok_enroll_unit  || exit 1
 fi
 
-# 7. Initramfs
+# Initramfs
 if [[ ${INITRAMFS} == true ]]; then
     log "Generating initramfs."
-    tmp_initramfs="$(mktemp)"
+    TMP_INITRAMFS="$(mktemp)"
     DRACUT_NO_XATTR=1 /usr/bin/dracut \
         --no-hostonly \
         --kver "${KERNEL_VERSION}" \
         --reproducible \
         --add ostree \
-        -f "$tmp_initramfs" \
+        -f "$TMP_INITRAMFS" \
         -v || return 1
 
-    install -D -m 0600 "$tmp_initramfs" "/lib/modules/${KERNEL_VERSION}/initramfs.img"
-    rm -f "$tmp_initramfs"
+    install -D -m 0600 "$TMP_INITRAMFS" "/lib/modules/${KERNEL_VERSION}/initramfs.img"
+    rm -f "$TMP_INITRAMFS"
 fi
 
-# 8. Check kernel for changes
-sha256sum -c /tmp/vmlinuz.sha || {
-  echo "Kernel modified after signing"
-  exit 1
-}
+# Final checks to eliminate having a broken build
+if [[ ${SECURE_BOOT} == true ]]; then
+    sha256sum -c /tmp/vmlinuz.sha || { error "Kernel modified after signing."; exit 1; }
+    rm -f /tmp/vmlinux.sha
+    log "Kernel was not modified after signing."
+fi
+
+if [[ ${NVIDIA} == true ]]; then
+    DIR="/usr/lib/modules/${KERNEL_VERSION}/extra/nvidia"
+
+    [[ -d "$DIR" ]] || { error "Missing Nvidia module directory: $DIR"; exit 1; }
+
+    for name in nvidia nvidia-{drm,modeset,peermem,uvm}; do
+        if ! compgen -G "${DIR}/${name}.*" > /dev/null; then
+            error "Missing Nvidia module: ${DIR}/${name}.*"
+            exit 1
+        fi
+    done
+
+    log "All Nvidia modules present."
+fi
 
 log "Custom kernel installation complete."
