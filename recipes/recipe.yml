@@ -85,11 +85,11 @@ modules:
       enabled:
         - podman.socket                 # needed for flatpaks to access toolbox containers
         - flatpak-firstboot.service     # installs the default flatpaks
-        - hostname-firstboot.service    # sets static hostname to silvercachy
 
   # Set OS name
   - type: os-release
     properties:
+      DEFAULT_HOSTNAME: silvercachy
       ID: silvercachy
       ID_LIKE: fedora
       NAME: SilverCachy
