@@ -1,6 +1,6 @@
 ---
 # yaml-language-server: $schema=https://schema.blue-build.org/recipe-v1.json
-name: silvercachy
+name: silvercachy-desktop
 description: Silverblue image based on BlueBuild's base images with CachyOS kernel and Nvidia (Desktop)
 base-image: ghcr.io/blue-build/base-images/fedora-silverblue
 image-version: 43
