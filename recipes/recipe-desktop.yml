@@ -31,6 +31,7 @@ modules:
         - gnome-disk-utility
         - gnome-color-manager
         - yelp
+        - pipewire-config-raop
         - gnome-shell-extension-background-logo
         - toolbox
     install:

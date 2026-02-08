@@ -1,37 +1,9 @@
 # SilverCachy &nbsp; [![bluebuild build badge](https://github.com/tapir/silvercachy/actions/workflows/build.yml/badge.svg)](https://github.com/tapir/silvercachy/actions/workflows/build.yml)
 
-A `BlueBuild` image based on Fedora Silverblue. It primarily adds the `CachyOS LTO` kernel and builds `NVIDIA` drivers specifically for that kernel. The image deliberately avoids opinionated defaults: aside from a terminal and a software store, no applications are preinstalled. All RPM-based desktop applications are removed so users are expected to install their Flatpak counterparts instead.
+An `atomic` image based on Fedora Silverblue. I have 2 variants: `silvercachy-desktop` and `silvercachy-laptop`. It's pretty much the same except the desktop version has the`nvidia` drivers included and the laptop version uses `scx_bpfland` scheduler in power saving mode by default. According to my tests this scheduler is super good for battery operated computers. Laptop version also has some settings to fix sleeping while docked.
 
-The kernel and all modules are signed with my `MOK` key. On secure boot systems the key will be automatically enrolled on first boot; use the password `scachy` when prompted.
-
-## Changes
-
-- Remove:
-  - `firefox`
-  - `firefox-langpacks`
-  - `htop`
-  - `nvtop`
-  - `gnome-software`
-  - `gnome-tour`
-  - `gnome-system-monitor`
-  - `gnome-disk-utility`
-  - `gnome-color-manager`
-  - `gnome-shell-extension-background-logo`
-  - `malcontent-control`
-  - `ptyxis`
-  - `yelp`
-
-- Install:
-  - `AppIndicator and KStatusNotifierItem Support` shell extension
-  - `Bazaar` flatpak (App Store)
-  - `Ptyxis` flatpak (Terminal)
-  - `kernel-cachyos-lto` kernel
-  - `nvidia` drivers from Negativo17
-  - `cachyos-settings`
-  - `scx-scheds`
-  - `scx-tools`
-  - `gamemode`
-  - `adw-gtk3-theme`
+Both images are completely barebones and only come with a terminal and an app store so that people can install whatever they want. I removed all non-flatpak GUI apps.
+Only opiniated defaults are `AppIndicator` Gnome extension being installed by default and `toolbox` being removed as I think people should just use `distrobox` instead.
 
 ## Installation
 
