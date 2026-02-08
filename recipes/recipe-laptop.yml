@@ -33,6 +33,7 @@ modules:
         - yelp
         - pipewire-config-raop
         - gnome-shell-extension-background-logo
+        - toolbox
     install:
       skip-unavailable: true
       packages:
