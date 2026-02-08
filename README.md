@@ -8,9 +8,9 @@ Only opiniated defaults are `AppIndicator` Gnome extension being installed by de
 ## Installation
 
 - Disable `secureboot` from BIOS and boot to an atomic distro
-- Switch to the latest image
+- Switch to the latest image of `desktop` or `laptop`
   ```
-  bootc switch ghcr.io/tapir/silvercachy:latest
+  bootc switch ghcr.io/tapir/silvercachy-desktop:latest
   systemctl reboot
   ```
 - Accept MOK key enrollment with password `scachy`
@@ -23,5 +23,5 @@ The `latest` tag will automatically point to the latest build. That build will s
 These images are signed with [Sigstore](https://www.sigstore.dev/)'s [cosign](https://github.com/sigstore/cosign). You can verify the signature by downloading the `cosign.pub` file from this repo and running the following command:
 
 ```bash
-cosign verify --key cosign.pub ghcr.io/tapir/silvercachy
+cosign verify --key cosign.pub ghcr.io/tapir/silvercachy-desktop
 ```
