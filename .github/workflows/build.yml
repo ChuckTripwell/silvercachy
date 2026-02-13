@@ -23,6 +23,7 @@ jobs:
       matrix:
         recipe:
           # !! Add your recipes here
+          - recipe-desktop-nvidia.yml
           - recipe-desktop.yml
           - recipe-laptop.yml
     steps:
